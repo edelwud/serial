@@ -14,11 +14,19 @@ type Serial interface {
 }
 
 type SerialPort struct {
-	Name   string
-	DCB    *DCB
-	Handle windows.Handle
-	Config *Config
+	Name     string
+	DCB      *DCB
+	Timeouts *CommTimeouts
+	Handle   windows.Handle
+	Config   *Config
 }
+
+const (
+	ClearOutBuffer        = 0x0004
+	CleatInBuffer         = 0x0008
+	CancelWriteOperations = 0x001
+	CancelReadOperations  = 0x002
+)
 
 var (
 	kernel32                = windows.NewLazyDLL("kernel32.dll")
@@ -55,8 +63,7 @@ func (port *SerialPort) Close() error {
 	return nil
 }
 
-func (port *SerialPort) Clear() error {
-	var flags uint32 = 0x0001 | 0x0002 | 0x004 | 0x0008
+func (port *SerialPort) Clear(flags uint32) error {
 	if r, _, err := procPurgeComm.Call(uintptr(port.Handle), uintptr(flags)); r == 0 {
 		return err
 	}
@@ -64,19 +71,18 @@ func (port *SerialPort) Clear() error {
 }
 
 func (port *SerialPort) Write(buffer []byte) error {
-	var written uint32
 	var overlapped windows.Overlapped
 
-	if err := port.Clear(); err != nil {
+	if err := port.Clear(ClearOutBuffer | CancelWriteOperations); err != nil {
 		return err
 	}
 
 	if err := windows.WriteFile(
 		port.Handle,
 		buffer,
-		&written,
+		nil,
 		&overlapped,
-	); err != windows.ERROR_IO_PENDING {
+	); err != nil || err != windows.ERROR_IO_PENDING {
 		return err
 	}
 	return nil
@@ -87,6 +93,10 @@ func (port *SerialPort) Read(buffer []byte) (uint32, error) {
 	var err error
 	overlapped.HEvent, err = windows.CreateEvent(nil, 1, 0, nil)
 	if err != nil {
+		return 0, err
+	}
+
+	if err := port.Clear(CancelReadOperations); err != nil {
 		return 0, err
 	}
 
@@ -135,8 +145,12 @@ func Open(com string, config *Config) (Serial, error) {
 		return nil, err
 	}
 
-	timeouts := &CommTimeouts{}
-	if err := timeouts.Configure(serial.Handle, config.ReadTimeout, config.WriteTimeout); err != nil {
+	serial.Timeouts = &CommTimeouts{}
+	if err := serial.Timeouts.Configure(serial.Handle, config.ReadTimeout, config.WriteTimeout); err != nil {
+		return nil, err
+	}
+
+	if err := serial.Clear(ClearOutBuffer | CleatInBuffer | CancelWriteOperations | CancelReadOperations); err != nil {
 		return nil, err
 	}
 
