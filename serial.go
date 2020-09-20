@@ -22,8 +22,8 @@ type SerialPort struct {
 }
 
 const (
-	ClearOutBuffer        = 0x0004
 	CleatInBuffer         = 0x0008
+	ClearOutBuffer        = 0x0004
 	CancelWriteOperations = 0x001
 	CancelReadOperations  = 0x002
 )
@@ -82,7 +82,7 @@ func (port *SerialPort) Write(buffer []byte) error {
 		buffer,
 		nil,
 		&overlapped,
-	); err != nil || err != windows.ERROR_IO_PENDING {
+	); err != windows.ERROR_IO_PENDING {
 		return err
 	}
 	return nil
