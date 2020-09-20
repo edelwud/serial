@@ -39,8 +39,14 @@ func (dcb *DCB) Build(handle windows.Handle, config *Config) error {
 	dcb.Parity = config.Parity
 	dcb.StopBits = config.StopBits
 
+	parityBit := uint32(0)
+	if config.Parity != 0 {
+		parityBit = 1
+	}
+
+	dcb.Flags |= parityBit << 1    // Parity
+
 	dcb.Flags |= 1 << 0    // Binary
-	dcb.Flags |= 1 << 1    // Parity
 	dcb.Flags |= 1 << 2    // OutxCtsFlow
 	dcb.Flags |= 1 << 3    // OutxDsrFlows
 	dcb.Flags |= 0x02 << 4 // DtrControl (HANDSHAKE)
