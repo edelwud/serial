@@ -108,16 +108,11 @@ func (port *SerialPort) Read(buffer []byte) (uint32, error) {
 	if err != windows.ERROR_IO_PENDING {
 		return 0, err
 	}
-	r, _, err := procGetOverlappedResult.Call(uintptr(port.Handle),
+	if r, _, err := procGetOverlappedResult.Call(uintptr(port.Handle),
 		uintptr(unsafe.Pointer(&overlapped)),
-		uintptr(unsafe.Pointer(&read)), 1)
-	if read == 0 {
+		uintptr(unsafe.Pointer(&read)), 1); r == 0 {
 		return 0, err
 	}
-	if r == 0 {
-		return 0, err
-	}
-
 	if err := windows.CloseHandle(overlapped.HEvent); err != nil {
 		return 0, err
 	}
