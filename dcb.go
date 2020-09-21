@@ -44,7 +44,7 @@ func (dcb *DCB) Build(handle windows.Handle, config *Config) error {
 		parityBit = 1
 	}
 
-	dcb.Flags |= parityBit << 1    // Parity
+	dcb.Flags |= parityBit << 1 // Parity
 
 	dcb.Flags |= 1 << 0    // Binary
 	dcb.Flags |= 1 << 2    // OutxCtsFlow
@@ -72,4 +72,16 @@ func (dcb *DCB) Build(handle windows.Handle, config *Config) error {
 	}
 
 	return nil
+}
+
+func (dcb *DCB) GetErrorState(handle windows.Handle) (bool, error) {
+	dcb.DCBlength = uint32(unsafe.Sizeof(*dcb))
+	r, _, err := procGetCommState.Call(uintptr(handle), uintptr(unsafe.Pointer(dcb)))
+	if r == 0 {
+		return true, err
+	}
+
+	flags := dcb.Flags
+
+	return flags>>17&0x1 == 1, nil
 }
